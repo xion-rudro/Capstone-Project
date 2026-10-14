@@ -10,6 +10,7 @@ import connectDB from './config/db.js';
 import errorHandler from './middleware/errorHandler.js';
 import authRoutes from './routes/authRoutes.js';
 import subjectRoutes from './routes/subjectRoutes.js';
+import aiRoutes from './routes/aiRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 
 const app = express();
@@ -31,8 +32,11 @@ app.use(express.json({ limit: '512kb' }));
 app.use(express.urlencoded({ extended: true, limit: '512kb' }));
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
+// Only the requested auth, subjects/PDFs, AI chat, and admin APIs are mounted.
+// The legacy quiz and flashcard route files are intentionally inactive for now.
 app.use('/api/auth', authRoutes);
 app.use('/api/subjects', subjectRoutes);
+app.use('/api/ai', aiRoutes);
 app.use('/api/admin', adminRoutes);
 
 app.use('/api', (_req, res) => res.status(404).json({ success: false, error: 'API route not found.' }));
@@ -41,4 +45,4 @@ app.use(errorHandler);
 const port = Number(process.env.PORT || 8000);
 await mkdir(uploadDirectory, { recursive: true });
 await connectDB();
-app.listen(port, () => console.log(`Learning Assistant backend listening on port ${port}`));
+app.listen(port, () => console.log(`AILEARNINGASSISTANT backend listening on port ${port}`));

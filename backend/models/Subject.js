@@ -6,6 +6,7 @@ const pdfSchema = new mongoose.Schema({
   displayName: { type: String, required: true, maxlength: 180 },
   size: { type: Number, required: true },
   pageCount: { type: Number, default: 0 },
+  extractedText: { type: String, default: '' },
   uploadedAt: { type: Date, default: Date.now }
 }, { _id: false });
 

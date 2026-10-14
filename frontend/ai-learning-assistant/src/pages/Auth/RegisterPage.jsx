@@ -16,7 +16,7 @@ export default function RegisterPage() {
     finally { setBusy(false); }
   };
   return <main className="auth-page"><section className="auth-frame">
-    <div className="auth-art"><div className="brand"><span className="brand-mark">L</span> Learning Assistant</div><div><span className="eyebrow">Start with one subject</span><h1>Build a study habit that feels like yours.</h1><p>Organize your notes by subject and topic, then read your PDFs in one place.</p><div className="art-note">✦ &nbsp;Your notes. Your pace. Your progress.</div></div><small>A workspace for learning</small></div>
+    <div className="auth-art"><div className="brand"><span className="brand-mark">A</span> AI Learning Assistant</div><div><span className="eyebrow">Start with one subject</span><h1>Build a study habit that feels like yours.</h1><p>Organize your notes by subject and topic, then ask questions with your PDFs close by.</p><div className="art-note">✦ &nbsp;Your notes. Your pace. Your progress.</div></div><small>A workspace for learning</small></div>
     <div className="auth-form-panel"><div className="auth-form"><span className="eyebrow">Create your study space</span><h2>Join the workspace</h2><p className="form-subtitle">A few details and you’re ready to begin.</p>
       <form onSubmit={submit}><label>Account type<select name="role" value={form.role} onChange={change}><option value="student">Student</option><option value="admin">Administrator</option></select></label>
         {form.role === 'admin' && <label>Administrator invite code<input name="inviteCode" type="password" value={form.inviteCode} onChange={change} autoComplete="off" required /></label>}
