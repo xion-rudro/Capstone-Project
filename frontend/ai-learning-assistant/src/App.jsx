@@ -9,11 +9,12 @@ import DashboardPage from './pages/Dashboard/DashboardPage';
 import DocumentListPage from './pages/Documents/DocumentListPage';
 import DocumentDetailPage from './pages/Documents/DocumentsDetailPage';
 import StudyTopicPage from './pages/Documents/StudyTopicPage';
+import ConversationsPage from './pages/Conversations/ConversationsPage';
 import AdminPage from './pages/Admin/AdminPage';
 
 function HomeRedirect() {
   const { user, loading } = useAuth();
-  if (loading) return <div className="loading-screen"><span className="brand-mark">L</span><p>Loading your study space…</p></div>;
+  if (loading) return <div className="loading-screen"><span className="brand-mark">A</span><p>Loading your study space…</p></div>;
   return <Navigate to={user ? (user.role === 'admin' ? '/admin' : '/dashboard') : '/login'} replace />;
 }
 
@@ -27,10 +28,14 @@ export default function App() {
       <Route path="/subjects" element={<DocumentListPage />} />
       <Route path="/subjects/:subjectId" element={<DocumentDetailPage />} />
       <Route path="/subjects/:subjectId/topics/:topicId" element={<StudyTopicPage />} />
+      <Route path="/conversations" element={<ConversationsPage />} />
     </Route></Route>
     <Route element={<ProtectedRoute role="admin" />}><Route element={<AppLayout />}>
       <Route path="/admin" element={<AdminPage />} />
     </Route></Route>
-    
+    {/* Not used in the current four-module version:
+        flashcards, quizzes, and the standalone profile page remain intentionally unrouted.
+        Their page files are kept for later use. */}
+    <Route path="*" element={<NotFoundPage />} />
   </Routes></BrowserRouter>;
 }

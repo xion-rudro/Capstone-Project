@@ -25,7 +25,7 @@ export default function DocumentsDetailPage() {
     catch (error) { toast.error(error.response?.data?.error || 'Could not rename subject.'); }
   };
   const deleteSubject = async () => {
-    if (!window.confirm('Delete this subject and all its topics and PDFs?')) return;
+    if (!window.confirm('Delete this subject, all its topics and PDFs, and their saved chats?')) return;
     try { await documentService.deleteSubject(subjectId); toast.success('Subject deleted.'); navigate('/subjects', { replace: true }); }
     catch (error) { toast.error(error.response?.data?.error || 'Could not delete subject.'); }
   };
@@ -36,7 +36,7 @@ export default function DocumentsDetailPage() {
     catch (error) { toast.error(error.response?.data?.error || 'Could not rename topic.'); }
   };
   const deleteTopic = async (topic) => {
-    if (!window.confirm('Delete this topic and its PDF?')) return;
+    if (!window.confirm('Delete this topic, its PDF and saved conversations?')) return;
     try { await documentService.deleteTopic(subjectId, topic._id); await refresh(); toast.success('Topic deleted.'); }
     catch (error) { toast.error(error.response?.data?.error || 'Could not delete topic.'); }
   };
@@ -45,8 +45,8 @@ export default function DocumentsDetailPage() {
   return <div>
     <div className="breadcrumb"><Link to="/subjects">My subjects</Link><span>›</span><span>{subject.name}</span></div>
     <div className="welcome-row"><div><span className="eyebrow">Subject workspace</span><h1>{subject.name}</h1><p>{subject.topics?.length || 0} topics · {(subject.topics || []).filter((topic) => topic.pdf).length} PDFs</p></div><div className="button-row"><button className="btn btn-secondary" onClick={renameSubject}>Rename</button><button className="btn btn-danger" onClick={deleteSubject}>Delete subject</button></div></div>
-    <div className="section-heading"><div><h2>Topics</h2><p>Each topic can hold a PDF for reading.</p></div></div>
-    {subject.topics?.length ? <div className="list-card">{subject.topics.map((topic) => <div className="topic-row" key={topic._id}><Link className="topic-open" to={'/subjects/' + subjectId + '/topics/' + topic._id}><span className="topic-icon">{topic.pdf ? '▧' : '◉'}</span><span className="row-main"><strong>{topic.name}</strong><small>{topic.pdf ? topic.pdf.displayName + ' · ' + (topic.pdf.pageCount || '—') + ' pages' : 'No study PDF yet'}</small></span><span className="row-arrow">→</span></Link><div className="topic-actions"><button className="btn btn-quiet" onClick={() => renameTopic(topic)}>Rename</button><button className="btn btn-quiet btn-danger-text" onClick={() => deleteTopic(topic)}>Delete</button></div></div>)}</div> : <div className="empty-state"><span>◉</span><h3>Add the first topic</h3><p>Organize each reading by topic.</p></div>}
+    <div className="section-heading"><div><h2>Topics</h2><p>Each topic can hold a PDF and its own saved AI conversation.</p></div></div>
+    {subject.topics?.length ? <div className="list-card">{subject.topics.map((topic) => <div className="topic-row" key={topic._id}><Link className="topic-open" to={'/subjects/' + subjectId + '/topics/' + topic._id}><span className="topic-icon">{topic.pdf ? '▧' : '◉'}</span><span className="row-main"><strong>{topic.name}</strong><small>{topic.pdf ? topic.pdf.displayName + ' · ' + (topic.pdf.pageCount || '—') + ' pages' : 'No study PDF yet'}</small></span><span className="row-arrow">→</span></Link><div className="topic-actions"><button className="btn btn-quiet" onClick={() => renameTopic(topic)}>Rename</button><button className="btn btn-quiet btn-danger-text" onClick={() => deleteTopic(topic)}>Delete</button></div></div>)}</div> : <div className="empty-state"><span>◉</span><h3>Add the first topic</h3><p>Topics keep each reading and question together.</p></div>}
     <form className="inline-create topic-create" onSubmit={addTopic}><input placeholder="e.g. Cell structure" aria-label="New topic name" value={topicName} maxLength={100} onChange={(event) => setTopicName(event.target.value)} required/><button className="btn btn-primary">＋ Add topic</button></form>
   </div>;
 }

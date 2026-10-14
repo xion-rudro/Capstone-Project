@@ -2,8 +2,9 @@ import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import Subject from '../models/Subject.js';
+import ChatHistory from '../models/ChatHistory.js';
 import { uploadDirectory, removeStoredPdf } from '../config/multer.js';
-import { parsePdfPageCount } from '../utils/pdfParser.js';
+import { parsePdfBuffer } from '../utils/pdfParser.js';
 
 const text = (value, max) => String(value || '').trim().slice(0, max);
 const ownedSubject = (userId, subjectId) => Subject.findOne({ _id: subjectId, ownerId: userId });
@@ -42,7 +43,7 @@ export const deleteSubject = async (req, res, next) => {
     const subject = await ownedSubject(req.user._id, req.params.subjectId);
     if (!subject) return res.status(404).json({ error: 'Subject not found.' });
     for (const topic of subject.topics) await removeStoredPdf(topic.pdf?.storageName);
-    await subject.deleteOne();
+    await Promise.all([subject.deleteOne(), ChatHistory.deleteMany({ subjectId: subject._id })]);
     res.json({ ok: true });
   } catch (error) { next(error); }
 };
@@ -79,7 +80,7 @@ export const deleteTopic = async (req, res, next) => {
     if (!topic) return res.status(404).json({ error: 'Topic not found.' });
     await removeStoredPdf(topic.pdf?.storageName);
     topic.deleteOne();
-    await subject.save();
+    await Promise.all([subject.save(), ChatHistory.deleteMany({ topicId: topic._id })]);
     res.json({ ok: true });
   } catch (error) { next(error); }
 };
@@ -96,15 +97,16 @@ export const uploadTopicPdf = async (req, res, next) => {
       await fs.unlink(uploadedPath).catch(() => {});
       return res.status(400).json({ error: 'This file is not a valid PDF.' });
     }
-    let pageCount = 0;
-    try { pageCount = await parsePdfPageCount(buffer); } catch { /* PDFs still open in the reader if page counting fails. */ }
+    let parsed = { text: '', pageCount: 0 };
+    try { parsed = await parsePdfBuffer(buffer); } catch { /* Scanned PDFs still open in the reader. */ }
     const previousPdf = topic.pdf;
     topic.pdf = {
       fileId: crypto.randomUUID(),
       storageName: path.basename(uploadedPath),
       displayName: text(req.body.displayName || req.file.originalname, 180) || 'Study notes.pdf',
       size: req.file.size,
-      pageCount,
+      pageCount: parsed.pageCount,
+      extractedText: parsed.text,
       uploadedAt: new Date()
     };
     await subject.save();
