@@ -1,87 +1,77 @@
-import Subject from '../models/Subject.js';
-import ChatHistory from '../models/ChatHistory.js';
-import AIRequest from '../models/AIRequest.js';
-import { answerStudyQuestion } from '../utils/geminiService.js';
+import Document from '../models/Document.js';
+import Flashcard from '../models/Flashcard.js';
+import * as geminiService from '../utils/geminiService.js';
 
-const ownedTopic = async (userId, subjectId, topicId) => {
-  const subject = await Subject.findOne({ _id: subjectId, ownerId: userId });
-  return { subject, topic: subject?.topics.id(topicId) };
-};
 
-export const listChats = async (req, res, next) => {
+export const generateFlashcards = async (req, res, next) => {
   try {
-    const query = { userId: req.user._id };
-    if (req.query.topicId) query.topicId = req.query.topicId;
-    const chats = await ChatHistory.find(query).sort({ updatedAt: -1 }).limit(50).lean();
-    res.json({ chats });
-  } catch (error) { next(error); }
-};
+    const { documentId, count = 10 } = req.body;
 
-export const createChat = async (req, res, next) => {
-  try {
-    const { subject, topic } = await ownedTopic(req.user._id, req.body.subjectId, req.body.topicId);
-    if (!subject || !topic) return res.status(404).json({ error: 'Topic not found.' });
-    const chat = await ChatHistory.create({
+    if (!documentId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please provide documentId',
+        statusCode: 400,
+      });
+    }
+
+    const requestedCount = Number(count);
+    if (!Number.isInteger(requestedCount) || requestedCount < 1 || requestedCount > 30) {
+      return res.status(400).json({
+        success: false,
+        error: 'Flashcard count must be an integer between 1 and 30',
+        statusCode: 400,
+      });
+    }
+
+    const document = await Document.findOne({
+      _id: documentId,
       userId: req.user._id,
-      subjectId: subject._id,
-      topicId: topic._id,
-      title: `Chat about ${topic.name}`
+      status: 'ready',
     });
-    res.status(201).json({ chat });
-  } catch (error) { next(error); }
-};
 
-export const getChat = async (req, res, next) => {
-  try {
-    const chat = await ChatHistory.findOne({ _id: req.params.chatId, userId: req.user._id }).lean();
-    if (!chat) return res.status(404).json({ error: 'Conversation not found.' });
-    res.json({ chat });
-  } catch (error) { next(error); }
-};
-
-export const sendMessage = async (req, res, next) => {
-  const startedAt = Date.now();
-  let requestRecord;
-  try {
-    const chat = await ChatHistory.findOne({ _id: req.params.chatId, userId: req.user._id });
-    if (!chat) return res.status(404).json({ error: 'Conversation not found.' });
-    const message = String(req.body.message || '').trim().slice(0, 4000);
-    if (!message) return res.status(400).json({ error: 'Write a question first.' });
-    chat.messages.push({ role: 'user', content: message });
-    if (chat.messages.length === 1) chat.title = message.slice(0, 75);
-    await chat.save();
-    requestRecord = await AIRequest.create({ userId: req.user._id, chatId: chat._id, status: 'error' });
-
-    if (!process.env.GEMINI_API_KEY) {
-      requestRecord.status = 'not_configured';
-      requestRecord.durationMs = Date.now() - startedAt;
-      await requestRecord.save();
-      return res.status(503).json({ error: 'AI is not configured yet. Add GEMINI_API_KEY to backend/.env. Your question is saved.' });
+    if (!document) {
+      return res.status(404).json({
+        success: false,
+        error: 'Document not found or not ready',
+        statusCode: 404,
+      });
     }
 
-    let pdfName = '';
-    let pdfText = '';
-    if (req.body.usePdf !== false) {
-      const { subject, topic } = await ownedTopic(req.user._id, chat.subjectId, chat.topicId);
-      if (subject && topic?.pdf) {
-        pdfName = topic.pdf.displayName;
-        pdfText = String(topic.pdf.extractedText || '').slice(0, 24000);
-      }
+    // Generate flashcards using Gemini
+    const cards = await geminiService.generateFlashcards(
+      document.extractedText,
+      requestedCount
+    );
+
+    if (!cards.length) {
+      return res.status(502).json({
+        success: false,
+        error: 'The AI could not create flashcards from this document. Try again.',
+        statusCode: 502,
+      });
     }
 
-    const answer = await answerStudyQuestion({ messages: chat.messages, pdfName, pdfText });
-    chat.messages.push({ role: 'assistant', content: answer });
-    await chat.save();
-    requestRecord.status = 'success';
-    requestRecord.durationMs = Date.now() - startedAt;
-    await requestRecord.save();
-    res.json({ chat });
+    // Save to database
+    const flashcardSet = await Flashcard.create({
+      userId: req.user._id,
+      documentId: document._id,
+      cards: cards.map((card) => ({
+        question: card.question,
+        answer: card.answer,
+        difficulty: card.difficulty,
+        reviewCount: 0,
+        isStarred: false,
+      })),
+    });
+
+    res.status(201).json({
+      success: true,
+      data: flashcardSet,
+      message: 'Flashcards generated successfully',
+    });
   } catch (error) {
-    if (requestRecord) {
-      requestRecord.status = 'error';
-      requestRecord.durationMs = Date.now() - startedAt;
-      await requestRecord.save().catch(() => {});
-    }
     next(error);
   }
 };
+

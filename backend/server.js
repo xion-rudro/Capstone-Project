@@ -3,46 +3,66 @@ dotenv.config();
 
 import express from 'express';
 import cors from 'cors';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { mkdir } from 'node:fs/promises';
+
 import connectDB from './config/db.js';
 import errorHandler from './middleware/errorHandler.js';
+
 import authRoutes from './routes/authRoutes.js';
-import subjectRoutes from './routes/subjectRoutes.js';
+import documentRoutes from './routes/documentRoutes.js';
+import flashcardRoutes from './routes/flashcardRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
-import adminRoutes from './routes/adminRoutes.js';
-
+import subjectRoutes from './routes/subjectRoutes.js';
+// Initialize Express app
 const app = express();
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-export const uploadDirectory = path.resolve(__dirname, process.env.UPLOAD_DIR || 'uploads');
 
-if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
-  throw new Error('Set JWT_SECRET to a random value with at least 32 characters.');
-}
+// Middleware
+app.use(
+  cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
 
-app.disable('x-powered-by');
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type']
-}));
-app.use(express.json({ limit: '512kb' }));
-app.use(express.urlencoded({ extended: true, limit: '512kb' }));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-app.get('/api/health', (_req, res) => res.json({ ok: true }));
-// Only the requested auth, subjects/PDFs, AI chat, and admin APIs are mounted.
-// The legacy quiz and flashcard route files are intentionally inactive for now.
+// Routes go here
 app.use('/api/auth', authRoutes);
+app.use('/api/documents', documentRoutes);
 app.use('/api/subjects', subjectRoutes);
+app.use('/api/flashcards', flashcardRoutes);
 app.use('/api/ai', aiRoutes);
-app.use('/api/admin', adminRoutes);
 
-app.use('/api', (_req, res) => res.status(404).json({ success: false, error: 'API route not found.' }));
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    error: 'Route not found',
+    statusCode: 404,
+  });
+});
+
+// Error handler must come after routes and 404 handler
 app.use(errorHandler);
 
-const port = Number(process.env.PORT || 8000);
-await mkdir(uploadDirectory, { recursive: true });
-await connectDB();
-app.listen(port, () => console.log(`AILEARNINGASSISTANT backend listening on port ${port}`));
+const PORT = process.env.PORT || 8000;
+
+const startServer = async () => {
+  await connectDB();
+  app.listen(PORT, () => {
+    console.log(
+      `Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`
+    );
+  });
+};
+
+startServer().catch((error) => {
+  console.error(`Server startup failed: ${error.message}`);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (err) => {
+  console.error(`Error: ${err.message}`);
+  process.exit(1);
+});

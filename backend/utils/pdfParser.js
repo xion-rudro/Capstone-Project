@@ -1,14 +1,29 @@
-import { PDFParse } from 'pdf-parse';
+import { PDFParse } from "pdf-parse";
 
-export async function parsePdfBuffer(buffer) {
-  const parser = new PDFParse({ data: buffer });
+/**
+ * Extract text from PDF file
+ * @param {Buffer} pdfBuffer - PDF bytes
+ * @returns {Promise<{text: string, numPages: number, info: Object}>}
+ */
+export const extractTextFromPDF = async (pdfBuffer) => {
   try {
-    const [textResult, infoResult] = await Promise.all([
-      parser.getText(),
-      parser.getInfo().catch(() => ({ total: 0 }))
-    ]);
-    return { text: String(textResult.text || '').slice(0, 120000), pageCount: Number(infoResult.total || 0) };
-  } finally {
-    await parser.destroy().catch(() => {});
+    const parser = new PDFParse({ data: pdfBuffer });
+    try {
+      const data = await parser.getText();
+
+      if (!data.text?.trim()) {
+        throw new Error('PDF contains no extractable text');
+      }
+
+      return {
+        text: data.text,
+        numPages: data.total,
+      };
+    } finally {
+      await parser.destroy();
+    }
+  } catch (error) {
+    console.error("PDF parsing error:", error);
+    throw new Error("Failed to extract text from PDF");
   }
-}
+};

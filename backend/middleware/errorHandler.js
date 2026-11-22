@@ -1,14 +1,28 @@
-const errorHandler = (err, _req, res, _next) => {
-  const statusCode = err.name === 'MulterError'
-    ? (err.code === 'LIMIT_FILE_SIZE' ? 413 : 400)
-    : (err.statusCode || err.status || 500);
-  if (statusCode >= 500) console.error('Request failed:', err.message);
-  const message = statusCode >= 500
-    ? 'Something went wrong. Please try again.'
-    : (err.name === 'MulterError' && err.code === 'LIMIT_FILE_SIZE'
-      ? 'PDFs must be 20 MB or smaller.'
-      : err.message);
-  res.status(statusCode).json({ success: false, error: message, statusCode });
+const errorHandler = (err, req, res, next) => {
+  console.error(err.stack || err.message);
+
+  let statusCode = err.statusCode || err.status || 500;
+  let message = err.message || 'Internal Server Error';
+
+  if (err.code === 11000) {
+    statusCode = 409;
+    const field = Object.keys(err.keyValue || {})[0];
+    message = field ? `${field} is already in use` : 'A record with these details already exists';
+  } else if (err.name === 'CastError') {
+    statusCode = 400;
+    message = 'Invalid identifier';
+  } else if (err.name === 'ValidationError') {
+    statusCode = 400;
+  } else if (err.name === 'MulterError') {
+    statusCode = err.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
+    message = err.code === 'LIMIT_FILE_SIZE' ? 'File is too large' : err.message;
+  }
+
+  res.status(statusCode).json({
+    success: false,
+    error: message,
+    statusCode,
+  });
 };
 
 export default errorHandler;

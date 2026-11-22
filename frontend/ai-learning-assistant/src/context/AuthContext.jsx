@@ -1,36 +1,57 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import authService from '../services/authService';
+import { useState } from 'react';
+import AuthContext from './authContext';
 
-const AuthContext = createContext(null);
+const readStoredAuth = () => {
+  if (typeof window === 'undefined') return { token: null, user: null };
 
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  try {
+    const token = window.localStorage.getItem('token');
+    const storedUser = window.localStorage.getItem('user');
+    return token && storedUser
+      ? { token, user: JSON.parse(storedUser) }
+      : { token: null, user: null };
+  } catch {
+    window.localStorage.removeItem('token');
+    window.localStorage.removeItem('user');
+    return { token: null, user: null };
+  }
+};
 
-  useEffect(() => {
-    authService.me().then(({ user: currentUser }) => setUser(currentUser)).catch(() => setUser(null)).finally(() => setLoading(false));
-  }, []);
+const AuthProvider = ({ children }) => {
+  const [auth, setAuth] = useState(readStoredAuth);
+  const isAuthenticated = Boolean(auth.token && auth.user);
 
-  const login = useCallback(async (credentials) => {
-    const result = await authService.login(credentials);
-    setUser(result.user);
-    return result.user;
-  }, []);
-  const register = useCallback(async (details) => {
-    const result = await authService.register(details);
-    setUser(result.user);
-    return result.user;
-  }, []);
-  const logout = useCallback(async () => {
-    try { await authService.logout(); } finally { setUser(null); }
-  }, []);
+  const login = (user, token) => {
+    window.localStorage.setItem('token', token);
+    window.localStorage.setItem('user', JSON.stringify(user));
+    setAuth({ user, token });
+  };
 
-  const value = useMemo(() => ({ user, loading, login, register, logout, setUser }), [user, loading, login, register, logout]);
+  const logout = () => {
+    window.localStorage.removeItem('token');
+    window.localStorage.removeItem('user');
+    setAuth({ token: null, user: null });
+    window.location.assign('/login');
+  };
+
+  const updateUser = (updatedUserData) => {
+    setAuth((currentAuth) => {
+      const user = { ...currentAuth.user, ...updatedUserData };
+      window.localStorage.setItem('user', JSON.stringify(user));
+      return { ...currentAuth, user };
+    });
+  };
+
+  const value = {
+    user: auth.user,
+    loading: false,
+    isAuthenticated,
+    login,
+    logout,
+    updateUser,
+  };
+
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
+};
 
-export function useAuth() {
-  const value = useContext(AuthContext);
-  if (!value) throw new Error('useAuth must be used inside AuthProvider.');
-  return value;
-}
+export default AuthProvider;

@@ -1,10 +1,28 @@
-import api from '../utils/axiosinstance';
+import axiosInstance from '../utils/axiosinstance';
+import { API_PATHS } from '../utils/apiPaths';
+
+const generateFlashcards = async (documentId, options) => {
+  try {
+    const response = await axiosInstance.post(
+      API_PATHS.AI.GENERATE_FLASHCARDS,
+      { documentId, ...options }
+    );
+    return response.data;
+  } catch (error) {
+    const responseError = error.response?.data;
+    throw new Error(
+      responseError?.error ||
+        responseError?.message ||
+        error.message ||
+        'Failed to generate flashcards'
+    );
+  }
+};
+
 
 const aiService = {
-  async listChats(topicId) { return (await api.get('/ai/chats', { params: topicId ? { topicId } : {} })).data.chats; },
-  async getChat(chatId) { return (await api.get(`/ai/chats/${chatId}`)).data.chat; },
-  async createChat(subjectId, topicId) { return (await api.post('/ai/chats', { subjectId, topicId })).data.chat; },
-  async sendMessage(chatId, message, usePdf) { return (await api.post(`/ai/chats/${chatId}/messages`, { message, usePdf })).data.chat; }
+  generateFlashcards,
+  
 };
 
 export default aiService;
