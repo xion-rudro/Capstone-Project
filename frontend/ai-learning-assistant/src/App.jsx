@@ -1,36 +1,62 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import { useAuth } from './context/AuthContext';
+import React from 'react';
+import {BrowserRouter as Router,Routes,Route,Navigate,} from 'react-router-dom';
+import useAuth from './context/useAuth';
+
 import LoginPage from './pages/Auth/Loginpage';
 import RegisterPage from './pages/Auth/RegisterPage';
 import NotFoundPage from './pages/Auth/NotFoundPage';
 import ProtectedRoute from './components/auth/ProtectedRoute';
-import AppLayout from './components/layout/AppLayout';
 import DashboardPage from './pages/Dashboard/DashboardPage';
 import DocumentListPage from './pages/Documents/DocumentListPage';
 import DocumentDetailPage from './pages/Documents/DocumentsDetailPage';
-import StudyTopicPage from './pages/Documents/StudyTopicPage';
-import AdminPage from './pages/Admin/AdminPage';
+import FlashcardsListPage from './pages/Flashcards/FlashcardsListPage';
+import FlashcardPage from './pages/Flashcards/FlashcardPage';
+import ProfilePage from './pages/Profile/ProfilePage';
 
-function HomeRedirect() {
-  const { user, loading } = useAuth();
-  if (loading) return <div className="loading-screen"><span className="brand-mark">L</span><p>Loading your study space…</p></div>;
-  return <Navigate to={user ? (user.role === 'admin' ? '/admin' : '/dashboard') : '/login'} replace />;
-}
+const App = () => {
+  const { isAuthenticated, loading } = useAuth();
+  
 
-export default function App() {
-  return <BrowserRouter><Routes>
-    <Route path="/" element={<HomeRedirect />} />
-    <Route path="/login" element={<LoginPage />} />
-    <Route path="/register" element={<RegisterPage />} />
-    <Route element={<ProtectedRoute role="student" />}><Route element={<AppLayout />}>
-      <Route path="/dashboard" element={<DashboardPage />} />
-      <Route path="/subjects" element={<DocumentListPage />} />
-      <Route path="/subjects/:subjectId" element={<DocumentDetailPage />} />
-      <Route path="/subjects/:subjectId/topics/:topicId" element={<StudyTopicPage />} />
-    </Route></Route>
-    <Route element={<ProtectedRoute role="admin" />}><Route element={<AppLayout />}>
-      <Route path="/admin" element={<AdminPage />} />
-    </Route></Route>
-    
-  </Routes></BrowserRouter>;
-}
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  return (
+    <Router>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            isAuthenticated ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+
+
+      {/* Protected Routes */}
+      <Route element={<ProtectedRoute />}>
+      <Route path='/dashboard' element={<DashboardPage />} />
+      <Route path='/documents' element={<DocumentListPage />} />
+      <Route path='/documents/:id' element={<DocumentDetailPage />} />
+      <Route path='/flashcards' element={<FlashcardsListPage />} />
+      <Route path='/documents/:id/flashcards' element={<FlashcardPage />} />
+      <Route path='/documents/:id/flashcards/:setId' element={<FlashcardPage />} />
+      <Route path='/profile' element={<ProfilePage />} />
+      </Route>
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+    </Router>
+  );
+};
+
+export default App;

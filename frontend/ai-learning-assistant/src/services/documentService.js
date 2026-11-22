@@ -1,21 +1,67 @@
-import api from '../utils/axiosinstance';
+import axiosInstance from '../utils/axiosinstance';
+import { API_PATHS } from '../utils/apiPaths';
+
+const getDocuments = async () => {
+  try {
+    const response = await axiosInstance.get(API_PATHS.DOCUMENTS.GET_DOCUMENTS);
+    return response.data?.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to fetch documents' };
+  }
+};
+
+const uploadDocument = async (formData) => {
+  try {
+    const response = await axiosInstance.post(
+      API_PATHS.DOCUMENTS.UPLOAD,
+      formData
+    );
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to upload document' };
+  }
+};
+
+const deleteDocument = async (id) => {
+  try {
+    const response = await axiosInstance.delete(
+      API_PATHS.DOCUMENTS.DELETE_DOCUMENT(id)
+    );
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to delete document' };
+  }
+};
+
+const getDocumentById = async (id) => {
+  try {
+    const response = await axiosInstance.get(
+      API_PATHS.DOCUMENTS.GET_DOCUMENT_BY_ID(id)
+    );
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to fetch document details' };
+  }
+};
+
+const getDocumentFile = async (id) => {
+  try {
+    const response = await axiosInstance.get(
+      API_PATHS.DOCUMENTS.GET_DOCUMENT_FILE(id),
+      { responseType: 'blob' }
+    );
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to load PDF file' };
+  }
+};
 
 const documentService = {
-  async listSubjects() { return (await api.get('/subjects')).data.subjects; },
-  async createSubject(name) { return (await api.post('/subjects', { name })).data.subject; },
-  async updateSubject(id, name) { return (await api.patch(`/subjects/${id}`, { name })).data.subject; },
-  async deleteSubject(id) { return (await api.delete(`/subjects/${id}`)).data; },
-  async createTopic(subjectId, name) { return (await api.post(`/subjects/${subjectId}/topics`, { name })).data.topic; },
-  async updateTopic(subjectId, topicId, name) { return (await api.patch(`/subjects/${subjectId}/topics/${topicId}`, { name })).data.topic; },
-  async deleteTopic(subjectId, topicId) { return (await api.delete(`/subjects/${subjectId}/topics/${topicId}`)).data; },
-  async uploadPdf(subjectId, topicId, file) {
-    const form = new FormData();
-    form.append('pdf', file);
-    return (await api.post(`/subjects/${subjectId}/topics/${topicId}/pdf`, form)).data.topic;
-  },
-  async renamePdf(subjectId, topicId, displayName) { return (await api.patch(`/subjects/${subjectId}/topics/${topicId}/pdf`, { displayName })).data.topic; },
-  async deletePdf(subjectId, topicId) { return (await api.delete(`/subjects/${subjectId}/topics/${topicId}/pdf`)).data; },
-  pdfUrl(fileId) { return `${import.meta.env.VITE_API_URL || '/api'}/subjects/files/${encodeURIComponent(fileId)}`; }
+  getDocuments,
+  uploadDocument,
+  deleteDocument,
+  getDocumentById,
+  getDocumentFile,
 };
 
 export default documentService;

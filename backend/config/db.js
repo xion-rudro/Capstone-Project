@@ -1,11 +1,17 @@
 import mongoose from 'mongoose';
+import dotenv from 'dotenv';
 
-export default async function connectDB() {
-  const uri = process.env.MONGO_URI || process.env.MONGODB_URI;
-  if (!uri) throw new Error('Set MONGO_URI in backend/.env before starting the server.');
+dotenv.config();
 
-  await mongoose.connect(uri, {
-    dbName: process.env.MONGODB_DB || 'ai_learning_assistant'
-  });
-  console.log(`MongoDB connected (${mongoose.connection.name}).`);
-}
+const connectDB = async () => {
+  try {
+    const conn = await mongoose.connect(process.env.MONGODB_URL);
+
+    console.log(`MongoDB Connected: ${conn.connection.host}`);
+  } catch (error) {
+    console.error(`MongoDB connection failed: ${error.message}`);
+    process.exit(1);
+  }
+};
+
+export default connectDB;
