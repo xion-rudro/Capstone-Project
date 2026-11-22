@@ -1,6 +1,8 @@
 import User from '../models/User.js';
 import Session from '../models/Session.js';
 import Subject from '../models/Subject.js';
+import ChatHistory from '../models/ChatHistory.js';
+import AIRequest from '../models/AIRequest.js';
 import { removeStoredPdf } from '../config/multer.js';
 
 const safeUser = (user) => ({
@@ -11,17 +13,31 @@ const safeUser = (user) => ({
 
 export const adminOverview = async (_req, res, next) => {
   try {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const activeCutoff = new Date(Date.now() - 5 * 60 * 1000);
-    const [users, activeUserIds] = await Promise.all([
+    const [users, activeUserIds, totalRequests, requestsToday, recent] = await Promise.all([
       User.find().sort({ createdAt: -1 }).lean(),
-      Session.distinct('userId', { revokedAt: null, expiresAt: { $gt: new Date() }, updatedAt: { $gte: activeCutoff } })
+      Session.distinct('userId', { revokedAt: null, expiresAt: { $gt: new Date() }, updatedAt: { $gte: activeCutoff } }),
+      AIRequest.countDocuments(),
+      AIRequest.countDocuments({ createdAt: { $gte: since } }),
+      AIRequest.find().sort({ createdAt: -1 }).limit(25).populate('userId', 'email').lean()
     ]);
     res.json({
       users: users.map(safeUser),
       metrics: {
         totalUsers: users.length,
-        activeUsers: activeUserIds.length
-      }
+        activeUsers: activeUserIds.length,
+        totalRequests,
+        requestsToday,
+        aiConfigured: Boolean(process.env.GEMINI_API_KEY)
+      },
+      recentRequests: recent.map((request) => ({
+        id: String(request._id),
+        email: request.userId?.email || 'Deleted user',
+        status: request.status,
+        durationMs: request.durationMs,
+        createdAt: request.createdAt
+      }))
     });
   } catch (error) { next(error); }
 };
@@ -55,7 +71,9 @@ export const deleteUser = async (req, res, next) => {
     await Promise.all([
       user.deleteOne(),
       Session.deleteMany({ userId: user._id }),
-      Subject.deleteMany({ ownerId: user._id })
+      Subject.deleteMany({ ownerId: user._id }),
+      ChatHistory.deleteMany({ userId: user._id }),
+      AIRequest.deleteMany({ userId: user._id })
     ]);
     res.json({ ok: true });
   } catch (error) { next(error); }
